@@ -173,35 +173,23 @@
             // D. GitHub Models (Gemini) 呼び出し
             const prompt = `あなたは熱血パーソナルトレーナーです。写真を見て、夏に向けてどこを具体的に絞るべきか、筋肉をどうつけるべきかアドバイスしてください。前回の回答：「${prevAdvice}」前回との違いがあれば指摘し、継続を褒めるか気合を入れ直して。回答は短く熱い日本語で！`;
 
+// --- テスト用：画像データを送らない設定 ---
             const response = await fetch(ENDPOINT, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${GITHUB_TOKEN}`
                 },
-                // --- 修正版：bodyの中身をこれに差し替えてください ---
-body: JSON.stringify({
-    model: "Gemini-1.5-Flash",
-    messages: [
-        {
-            role: "user",
-            content: [
-                { 
-                    type: "text", 
-                    text: prompt 
-                },
-                { 
-                    type: "image_url", 
-                    image_url: { 
-                        // ここがポイント：detailを指定しないとエラーになる場合があります
-                        url: `data:image/jpeg;base64,${base64Image}`,
-                        detail: "auto" 
-                    } 
-                }
-            ]
-        }
-    ]
-})
+                body: JSON.stringify({
+                    model: MODEL_NAME,
+                    messages: [
+                        {
+                            role: "user",
+                            content: prompt // ← 配列ではなく、ただの文字列として送る
+                        }
+                    ],
+                    max_tokens: 1000
+                })
             });
 
             const result = await response.json();
