@@ -69,8 +69,6 @@
     const SUPABASE_URL = 'https://bbxtesuqsqwdokangvrj.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJieHRlc3Vxc3F3ZG9rYW5ndnJqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3NTE5MjIsImV4cCI6MjA5MjMyNzkyMn0.XWyt_nddkVJnjYX51AqH1CRe1Wniq7LsFvDVKaoRaa8';
     const GEMINI_API_KEY = 'AIzaSyBtwlqqXAW_iUe96y0WkK3CptvMcGfxAKQ';
-    const url = "https://models.inference.ai.azure.com/chat/completions";
-    const GITHUB_TOKEN = "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";
 
     const mySupabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -112,6 +110,9 @@
         checkUserStatus();
     });
 
+    const url = "https://models.inference.ai.azure.com/chat/completions";
+    const GITHUB_TOKEN = "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";
+    
     // 写真プレビュー
     document.getElementById('photo-input').addEventListener('change', e => {
         const file = e.target.files[0];
