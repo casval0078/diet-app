@@ -65,18 +65,48 @@
 </div>
 
 <script>
-// --- この3行の組み合わせを一つずつ試すのが最短ルートです ---
+    // --- 最小テスト構成 ---
     const part1 = "ghp_wSLZ6GfrxZkd9R77";
     const part2 = "kzvPyaSCkGvkOy19V3Fs";
     const GITHUB_TOKEN = part1 + part2;
-const ENDPOINT = "https://models.inference.ai.azure.com/chat/completions";
-const MODEL_NAME = "gemini-1.5-flash"; // 小文字にしました
+    const ENDPOINT = "https://models.inference.ai.azure.com/chat/completions";
+    const MODEL_NAME = "gemini-1.5-flash"; 
 
-// fetchの中身
-body: JSON.stringify({
-    model: MODEL_NAME,
-    messages: [{ role: "user", content: "Hello" }]
-})
+    const analyzeBtn = document.getElementById('upload-btn');
+    const resultDiv = document.getElementById('advice-text');
+    const aiResponseArea = document.getElementById('ai-response');
+
+    analyzeBtn.addEventListener('click', async () => {
+        resultDiv.innerText = "テスト通信中...";
+        aiResponseArea.style.display = 'block';
+
+        try {
+            const response = await fetch(ENDPOINT, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${GITHUB_TOKEN}`
+                },
+                body: JSON.stringify({
+                    model: MODEL_NAME,
+                    messages: [{ role: "user", content: "Hello! Are you working?" }]
+                })
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                // エラーの詳細を画面に出す
+                console.error("詳細:", result);
+                resultDiv.innerText = `失敗(Status: ${response.status})\nエラー内容: ${JSON.stringify(result)}`;
+            } else {
+                // 成功
+                resultDiv.innerText = "成功だ！AIからの返信: " + result.choices[0].message.content;
+            }
+        } catch (e) {
+            resultDiv.innerText = "通信自体に失敗したぞ: " + e.message;
+        }
+    });
 </script>
 </body>
 </html>
