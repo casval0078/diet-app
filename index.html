@@ -51,6 +51,40 @@
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJieHRlc3Vxc3F3ZG9rYW5ndnJqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3NTE5MjIsImV4cCI6MjA5MjMyNzkyMn0.XWyt_nddkVJnjYX51AqH1CRe1Wniq7LsFvDVKaoRaa8';
     const mySupabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+    // --- 1. ログイン状態を表示する関数 ---
+async function checkUserStatus() {
+    const { data: { user } } = await mySupabase.auth.getUser();
+    const statusArea = document.getElementById('user-status');
+    
+    if (user) {
+        statusArea.innerHTML = `✅ <strong>${user.email}</strong> でログイン中`;
+        statusArea.style.color = "#2e7d32";
+        // ログイン済みなら登録フォームを隠す、などの工夫もできます
+    } else {
+        statusArea.innerHTML = "❌ ログインしていません";
+        statusArea.style.color = "#d32f2f";
+    }
+}
+
+// ページを開いた瞬間に状態をチェック
+checkUserStatus();
+
+// --- 2. 登録・ログインボタンの処理を少し修正 ---
+document.getElementById('signup-btn').addEventListener('click', async () => {
+    const email = document.getElementById('user-email').value;
+    const password = document.getElementById('user-password').value;
+
+    const { data, error } = await mySupabase.auth.signUp({ email, password });
+
+    if (error) {
+        alert("エラー: " + error.message);
+    } else {
+        alert("ログイン/登録に成功しました！");
+        // 登録・ログインが成功したら表示を更新する
+        checkUserStatus(); 
+    }
+});
+
     // 写真を選んだらプレビューを表示する
     document.getElementById('photo-input').addEventListener('change', function(e) {
         const file = e.target.files[0];
@@ -63,14 +97,6 @@
             }
             reader.readAsDataURL(file);
         }
-    });
-
-    // 登録ボタン（前回と同じ）
-    document.getElementById('signup-btn').addEventListener('click', async () => {
-        const email = document.getElementById('user-email').value;
-        const password = document.getElementById('user-password').value;
-        const { error } = await mySupabase.auth.signUp({ email, password });
-        if (error) alert(error.message); else alert("準備完了！");
     });
 
     // 送信ボタン（ここにGemini連携を足していきます）
