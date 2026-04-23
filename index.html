@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>夏に向けて！AIダイエット診断</title>
+    <title>夏までに絞る！AIパーソナルトレーナー</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root { --primary: #FF4785; --bg: #f0f2f5; --success: #2e7d32; }
@@ -16,47 +16,48 @@
         #user-status { font-size: 0.9rem; font-weight: bold; margin-bottom: 8px; }
         
         .card { background: #fafafa; border-radius: 12px; padding: 15px; margin-bottom: 20px; border: 1px solid #eee; }
-        label { font-weight: bold; font-size: 0.9rem; display: block; margin-bottom: 5px; }
-        input[type="email"], input[type="password"] { width: 100%; padding: 12px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        label { font-weight: bold; font-size: 0.9rem; display: block; margin-bottom: 10px; }
+        input { width: 100%; padding: 12px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
         
         /* ボタン類 */
         button { width: 100%; padding: 15px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s; }
         button:hover { background: #e03e75; transform: translateY(-2px); }
-        #logout-btn { background: #999; padding: 8px 15px; width: auto; font-size: 0.8rem; margin-top: 5px; }
+        #logout-btn { background: #999; padding: 5px 12px; width: auto; font-size: 0.8rem; margin: 5px auto; display: block; }
         
         /* 写真プレビュー */
         #preview { width: 100%; border-radius: 10px; margin-top: 10px; display: none; border: 2px solid #eee; }
         
         /* AI回答・読み込み */
-        #ai-response { background: #fffde7; border-left: 5px solid #fbc02d; padding: 15px; margin-top: 20px; border-radius: 4px; display: none; }
+        #ai-response { background: #fffde7; border-left: 5px solid #fbc02d; padding: 20px; margin-top: 20px; border-radius: 8px; display: none; line-height: 1.6; }
+        #advice-text { white-space: pre-wrap; font-size: 0.95rem; }
         .loading { display: none; text-align: center; color: var(--primary); font-weight: bold; padding: 20px; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>🔥 夏までに絞る！ダイエットAI</h1>
+    <h1>🔥 夏までに絞る！AIトレーナー</h1>
 
     <div id="user-status-container">
-        <div id="user-status">状態を確認中...</div>
+        <div id="user-status">確認中...</div>
         <button id="logout-btn" style="display: none;">ログアウト</button>
     </div>
 
     <div class="card" id="auth-section">
-        <label>1. アカウント準備</label>
+        <label>1. アカウントログイン</label>
         <input type="email" id="user-email" placeholder="メールアドレス">
         <input type="password" id="user-password" placeholder="パスワード">
         <button id="signup-btn">ログイン / 登録</button>
     </div>
 
     <div class="card">
-        <label>2. 身体の写真を撮影・選択</label>
+        <label>2. 今日の写真をアップロード</label>
         <input type="file" id="photo-input" accept="image/*">
-        <img id="preview" src="" alt="プレビュー">
-        <button id="upload-btn" style="margin-top: 15px;">AIで体型を分析する</button>
+        <img id="preview" alt="プレビュー">
+        <button id="upload-btn" style="margin-top: 15px;">AIに分析してもらう</button>
     </div>
 
-    <div class="loading" id="loader">AIが分析中... しばらくお待ちください🔥</div>
+    <div class="loading" id="loader">AIが画像と過去のデータを分析中...🔥</div>
     <div id="ai-response">
         <strong>🏃‍♂️ AIトレーナーのアドバイス:</strong>
         <p id="advice-text"></p>
@@ -64,12 +65,14 @@
 </div>
 
 <script>
-    // --- 設定：自分の情報に書き換えてください ---
-    const SUPABASE_URL = 'https://bbxtesuqsqwdokangvrj.supabase.co';
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJieHRlc3Vxc3F3ZG9rYW5ndnJqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3NTE5MjIsImV4cCI6MjA5MjMyNzkyMn0.XWyt_nddkVJnjYX51AqH1CRe1Wniq7LsFvDVKaoRaa8';
+    // --- 【設定】ここを自分の情報に書き換えてください ---
+    const SUPABASE_URL = 'あなたのSupabase URL';
+    const SUPABASE_KEY = 'あなたのSupabase anonキー';
+    const GEMINI_API_KEY = 'あなたのGemini APIキー';
+
     const mySupabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // --- A. ログイン状態のチェックと表示切り替え ---
+    // ログイン状態チェック
     async function checkUserStatus() {
         const { data: { user } } = await mySupabase.auth.getUser();
         const statusArea = document.getElementById('user-status');
@@ -79,108 +82,118 @@
         if (user) {
             statusArea.innerHTML = `✅ <strong>${user.email}</strong> でログイン中`;
             statusArea.style.color = "#2e7d32";
-            authSection.style.display = "none";  // フォームを隠す
-            logoutBtn.style.display = "inline-block"; // ログアウトボタンを出す
+            authSection.style.display = "none";
+            logoutBtn.style.display = "block";
         } else {
             statusArea.innerHTML = "❌ ログインしていません";
             statusArea.style.color = "#d32f2f";
-            authSection.style.display = "block"; // フォームを出す
-            logoutBtn.style.display = "none";    // ログアウトボタンを隠す
+            authSection.style.display = "block";
+            logoutBtn.style.display = "none";
         }
     }
-
-    // 初回読み込み時に実行
     checkUserStatus();
 
-    // --- B. ログイン・登録の処理 ---
+    // ログイン・登録処理
     document.getElementById('signup-btn').addEventListener('click', async () => {
-    const email = document.getElementById('user-email').value;
-    const password = document.getElementById('user-password').value;
-
-    // 1. まずは「ログイン」を試みる
-    const { data: signInData, error: signInError } = await mySupabase.auth.signInWithPassword({
-        email: email,
-        password: password,
+        const email = document.getElementById('user-email').value;
+        const password = document.getElementById('user-password').value;
+        let { error } = await mySupabase.auth.signInWithPassword({ email, password });
+        if (error) {
+            let { error: signUpError } = await mySupabase.auth.signUp({ email, password });
+            if (signUpError) alert("エラー: " + signUpError.message);
+        }
+        checkUserStatus();
     });
 
-    if (!signInError) {
-        alert("ログインしました！");
-        checkUserStatus();
-        return;
-    }
-
-    // 2. ログインに失敗し、かつ「ユーザーが見つからない」場合だけ「新規登録」する
-    if (signInError.message === "Invalid login credentials") {
-        const { data: signUpData, error: signUpError } = await mySupabase.auth.signUp({
-            email: email,
-            password: password,
-        });
-
-        if (signUpError) {
-            alert("登録エラー: " + signUpError.message);
-        } else {
-            alert("新しくアカウントを作成しました！");
-            checkUserStatus();
-        }
-    } else {
-        // パスワード間違いなど、その他のエラーを表示
-        alert("エラー: " + signInError.message);
-    }
-});
-
-    // --- C. ログアウトの処理 ---
     document.getElementById('logout-btn').addEventListener('click', async () => {
         await mySupabase.auth.signOut();
-        alert("ログアウトしました");
         checkUserStatus();
     });
 
-    // --- D. 写真プレビュー表示 ---
-    document.getElementById('photo-input').addEventListener('change', function(e) {
+    // 写真プレビュー
+    document.getElementById('photo-input').addEventListener('change', e => {
         const file = e.target.files[0];
         if (file) {
             const reader = new FileReader();
-            reader.onload = function(f) {
+            reader.onload = f => {
                 const preview = document.getElementById('preview');
                 preview.src = f.target.result;
                 preview.style.display = 'block';
-            }
+            };
             reader.readAsDataURL(file);
         }
     });
 
-    // --- E. 分析ボタンの処理（次はここにGeminiを足します） ---
+    // 【メイン】分析ボタンの処理
     document.getElementById('upload-btn').addEventListener('click', async () => {
         const fileInput = document.getElementById('photo-input');
         const file = fileInput.files[0];
-        
         if (!file) return alert("写真を選んでください！");
 
-        // ログインチェック
         const { data: { user } } = await mySupabase.auth.getUser();
-        if (!user) return alert("分析にはログインが必要です。");
+        if (!user) return alert("ログインが必要です。");
 
-        // 画面表示を「分析中」に切り替え
         document.getElementById('loader').style.display = 'block';
         document.getElementById('ai-response').style.display = 'none';
 
-        // 1. Supabase Storageに保存
-        const fileName = `${user.id}/${Date.now()}.jpg`;
-        const { data, error } = await mySupabase.storage
-            .from('body-pics')
-            .upload(fileName, file);
+        try {
+            // 1. Supabase Storageに保存（ユーザーIDごとのフォルダ）
+            const fileName = `${user.id}/${Date.now()}.jpg`;
+            const { error: uploadError } = await mySupabase.storage
+                .from('body-pics')
+                .upload(fileName, file);
+            if (uploadError) throw uploadError;
 
-        if (error) {
-            alert("保存エラー: " + error.message);
-            document.getElementById('loader').style.display = 'none';
-        } else {
-            // 保存成功！
-            console.log("画像保存完了:", data);
+            // 2. 前回のアドバイスをDBから取得
+            const { data: history } = await mySupabase
+                .from('diet_history')
+                .select('advice')
+                .eq('user_id', user.id)
+                .order('created_at', { ascending: false })
+                .limit(1);
             
-            // ★ 次のステップでここに Gemini API の呼び出しコードを書きます ★
-            document.getElementById('loader').style.display = 'none';
+            const prevAdvice = (history && history.length > 0) ? history[0].advice : "初回診断です。";
+
+            // 3. 画像をGeminiが読める形式(Base64)に変換
+            const base64Image = await new Promise(r => {
+                const reader = new FileReader();
+                reader.onload = () => r(reader.result.split(',')[1]);
+                reader.readAsDataURL(file);
+            });
+
+            // 4. Gemini API 呼び出し
+            const prompt = `あなたは熱血パーソナルトレーナーです。写真を見て、夏に向けてどこを具体的に絞るべきか、筋肉をどうつけるべきかアドバイスしてください。
+            前回のあなたの回答はこれです：「${prevAdvice}」
+            前回との違いがあれば指摘し、継続を褒めるか、気合を入れ直すメッセージをください。回答は短く、熱く、日本語でお願いします。`;
+
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{
+                        parts: [
+                            { text: prompt },
+                            { inline_data: { mime_type: "image/jpeg", data: base64Image } }
+                        ]
+                    }]
+                })
+            });
+
+            const result = await response.json();
+            const advice = result.candidates[0].content.parts[0].text;
+
+            // 5. 今回の回答をDBに保存
+            await mySupabase.from('diet_history').insert([{ user_id: user.id, advice: advice }]);
+
+            // 6. 表示
+            document.getElementById('advice-text').innerText = advice;
             document.getElementById('ai-response').style.display = 'block';
-            document.getElementById('advice-text').innerText = "（ここにAIのアドバイスが表示されるようになります。次はGemini APIキーを準備しましょう！）";
+
+        } catch (e) {
+            console.error(e);
+            alert("エラーが発生しました: " + e.message);
+        } finally {
+            document.getElementById('loader').style.display = 'none';
         }
     });
 </script>
