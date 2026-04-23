@@ -6,30 +6,19 @@
     <title>夏までに絞る！AIパーソナルトレーナー</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        :root { --primary: #FF4785; --bg: #f0f2f5; --success: #2e7d32; }
+        :root { --primary: #FF4785; --bg: #f0f2f5; }
         body { font-family: 'Helvetica Neue', Arial, sans-serif; background: var(--bg); color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
         .container { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        h1 { text-align: center; color: var(--primary); font-size: 1.5rem; margin-bottom: 10px; }
-        
-        /* 状態表示エリア */
-        #user-status-container { text-align: center; margin-bottom: 20px; padding: 10px; border-radius: 10px; background: #fafafa; }
-        #user-status { font-size: 0.9rem; font-weight: bold; margin-bottom: 8px; }
-        
+        h1 { text-align: center; color: var(--primary); font-size: 1.5rem; }
+        #user-status-container { text-align: center; margin-bottom: 20px; padding: 10px; border-radius: 10px; background: #fafafa; font-size: 0.9rem; }
         .card { background: #fafafa; border-radius: 12px; padding: 15px; margin-bottom: 20px; border: 1px solid #eee; }
         label { font-weight: bold; font-size: 0.9rem; display: block; margin-bottom: 10px; }
         input { width: 100%; padding: 12px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
-        
-        /* ボタン類 */
         button { width: 100%; padding: 15px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s; }
         button:hover { background: #e03e75; transform: translateY(-2px); }
-        #logout-btn { background: #999; padding: 5px 12px; width: auto; font-size: 0.8rem; margin: 5px auto; display: block; }
-        
-        /* 写真プレビュー */
+        #logout-btn { background: #999; padding: 5px 12px; width: auto; font-size: 0.8rem; margin: 5px auto; display: none; }
         #preview { width: 100%; border-radius: 10px; margin-top: 10px; display: none; border: 2px solid #eee; }
-        
-        /* AI回答・読み込み */
         #ai-response { background: #fffde7; border-left: 5px solid #fbc02d; padding: 20px; margin-top: 20px; border-radius: 8px; display: none; line-height: 1.6; }
-        #advice-text { white-space: pre-wrap; font-size: 0.95rem; }
         .loading { display: none; text-align: center; color: var(--primary); font-weight: bold; padding: 20px; }
     </style>
 </head>
@@ -40,7 +29,7 @@
 
     <div id="user-status-container">
         <div id="user-status">確認中...</div>
-        <button id="logout-btn" style="display: none;">ログアウト</button>
+        <button id="logout-btn">ログアウト</button>
     </div>
 
     <div class="card" id="auth-section">
@@ -57,119 +46,93 @@
         <button id="upload-btn" style="margin-top: 15px;">AIに分析してもらう</button>
     </div>
 
-    <div class="loading" id="loader">AIが画像と過去のデータを分析中...🔥</div>
+    <div class="loading" id="loader">熱血トレーナーが画像を確認中...🔥</div>
     <div id="ai-response">
         <strong>🏃‍♂️ AIトレーナーのアドバイス:</strong>
-        <p id="advice-text"></p>
+        <p id="advice-text" style="white-space: pre-wrap;"></p>
     </div>
 </div>
 
 <script>
-    // --- 1. 設定（成功したものをそのまま使用） ---
+    // --- 設定 ---
+    const SUPABASE_URL = 'https://bbxtesuqsqwdokangvrj.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJieHRlc3Vxc3F3ZG9rYW5ndnJqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3NTE5MjIsImV4cCI6MjA5MjMyNzkyMn0.XWyt_nddkVJnjYX51AqH1CRe1Wniq7LsFvDVKaoRaa8';
+    
+    // GitHub Models (無料枠)
     const part1 = "ghp_wSLZ6GfrxZkd9R77";
     const part2 = "kzvPyaSCkGvkOy19V3Fs";
     const GITHUB_TOKEN = part1 + part2;
     const ENDPOINT = "https://models.inference.ai.azure.com/chat/completions";
-    const MODEL_NAME = "gpt-4o"; // 成功したモデル名
+    // 無料で最も安定しているモデルを指定
+    const MODEL_NAME = "gpt-4o-mini"; 
 
-    const SUPABASE_URL = 'https://bbxtesuqsqwdokangvrj.supabase.co';
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJieHRlc3Vxc3F3ZG9rYW5ndnJqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3NTE5MjIsImV4cCI6MjA5MjMyNzkyMn0.XWyt_nddkVJnjYX51AqH1CRe1Wniq7LsFvDVKaoRaa8';
     const mySupabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // 要素の取得
-    const photoInput = document.getElementById('photo-input');
-    const preview = document.getElementById('preview');
-    const analyzeBtn = document.getElementById('upload-btn');
-    const resultText = document.getElementById('advice-text');
-    const aiResponseArea = document.getElementById('ai-response');
-    const loader = document.getElementById('loader');
-
-    // ログインチェックなどは省略せず、以前のものをそのまま使ってください（checkUserStatusなど）
-    // 1. ログイン状態チェック
     async function checkUserStatus() {
         const { data: { user } } = await mySupabase.auth.getUser();
         const statusArea = document.getElementById('user-status');
-        const logoutBtn = document.getElementById('logout-btn');
         const authSection = document.getElementById('auth-section');
-        
+        const logoutBtn = document.getElementById('logout-btn');
         if (user) {
-            statusArea.innerHTML = `✅ <strong>${user.email}</strong> でログイン中`;
-            statusArea.style.color = "#2e7d32";
+            statusArea.innerHTML = `✅ <strong>${user.email}</strong>`;
             authSection.style.display = "none";
             logoutBtn.style.display = "block";
         } else {
             statusArea.innerHTML = "❌ ログインしていません";
-            statusArea.style.color = "#d32f2f";
             authSection.style.display = "block";
             logoutBtn.style.display = "none";
         }
     }
     checkUserStatus();
 
-    // 2. ログイン・登録処理
     document.getElementById('signup-btn').addEventListener('click', async () => {
         const email = document.getElementById('user-email').value;
         const password = document.getElementById('user-password').value;
-        if(!email || !password) return alert("メールとパスワードを入力してください");
-
+        if(!email || !password) return alert("入力してください");
         let { error } = await mySupabase.auth.signInWithPassword({ email, password });
-        if (error) {
-            let { error: signUpError } = await mySupabase.auth.signUp({ email, password });
-            if (signUpError) alert("エラー: " + signUpError.message);
-            else alert("確認メールを送りました。チェックしてください");
-        }
+        if (error) await mySupabase.auth.signUp({ email, password });
         checkUserStatus();
     });
 
     document.getElementById('logout-btn').addEventListener('click', async () => {
         await mySupabase.auth.signOut();
-        checkUserStatus();
+        location.reload(); // セッションクリアのためリロード推奨
     });
-    
-    // 写真プレビュー
-    photoInput.addEventListener('change', e => {
+
+    document.getElementById('photo-input').addEventListener('change', e => {
         const file = e.target.files[0];
         if (file) {
             const reader = new FileReader();
             reader.onload = f => {
-                preview.src = f.target.result;
-                preview.style.display = 'block';
+                document.getElementById('preview').src = f.target.result;
+                document.getElementById('preview').style.display = 'block';
             };
             reader.readAsDataURL(file);
         }
     });
 
-    // メイン処理
-    analyzeBtn.addEventListener('click', async () => {
-        const file = photoInput.files[0];
-        if (!file) return alert("写真を送ってください");
-
+    document.getElementById('upload-btn').addEventListener('click', async () => {
+        const file = document.getElementById('photo-input').files[0];
+        if (!file) return alert("写真を選んで！");
         const { data: { user } } = await mySupabase.auth.getUser();
         if (!user) return alert("ログインが必要です");
 
-        loader.style.display = 'block';
-        aiResponseArea.style.display = 'none';
+        document.getElementById('loader').style.display = 'block';
+        document.getElementById('ai-response').style.display = 'none';
 
         try {
-            // A. 画像をBase64に変換（102KBならリサイズなしでOK）
+            // 画像変換 (Base64)
             const base64Image = await new Promise(r => {
                 const reader = new FileReader();
                 reader.onload = () => r(reader.result.split(',')[1]);
                 reader.readAsDataURL(file);
             });
 
-            // B. 前回のアドバイスを取得（Supabase連携）
-            const { data: history } = await mySupabase
-                .from('diet_history')
-                .select('advice')
-                .eq('user_id', user.id)
-                .order('created_at', { ascending: false })
-                .limit(1);
-            const prevAdvice = (history && history.length > 0) ? history[0].advice : "初回診断です。";
+            // 履歴取得
+            const { data: history } = await mySupabase.from('diet_history').select('advice').eq('user_id', user.id).order('created_at', { ascending: false }).limit(1);
+            const prevAdvice = (history && history.length > 0) ? history[0].advice : "初回診断";
 
-            // C. 通信（成功した形式で画像を送る）
-            const prompt = `あなたは20歳のイケメンパーソナルトレーナーです。身体の写真を見て、夏に向けてどこを具体的に絞るべきか、筋肉をどうつけるべきかアドバイスしてください。相手は女子高生の想定です。めろくなるように助言してください。前回の助言：${prevAdvice}`;
-
+            // GitHub Models 呼び出し
             const response = await fetch(ENDPOINT, {
                 method: 'POST',
                 headers: {
@@ -182,7 +145,7 @@
                         {
                             role: "user",
                             content: [
-                                { type: "text", text: prompt },
+                                { type: "text", text: `君は熱血ダイエットトレーナーだ。画像を見て、どこを絞るべきか熱く日本語でアドバイスしろ。前回のアドバイス：「${prevAdvice}」` },
                                 { type: "image_url", image_url: { url: `data:image/jpeg;base64,${base64Image}` } }
                             ]
                         }
@@ -191,22 +154,23 @@
             });
 
             const result = await response.json();
-            if (!response.ok) throw new Error(JSON.stringify(result));
+            if (!response.ok) throw new Error(result.error?.message || "AIエラー");
 
             const advice = result.choices[0].message.content;
 
-            // D. Supabaseに保存
-            await mySupabase.from('diet_history').insert([{ user_id: user.id, advice: advice }]);
+            // 保存
+            try {
+                await mySupabase.from('diet_history').insert([{ user_id: user.id, advice: advice }]);
+            } catch (e) { console.warn("保存失敗:", e); }
 
-            // E. 結果表示
-            resultText.innerText = advice;
-            aiResponseArea.style.display = 'block';
+            // 表示
+            document.getElementById('advice-text').innerText = advice;
+            document.getElementById('ai-response').style.display = 'block';
 
         } catch (e) {
-            console.error(e);
-            alert("エラーです: " + e.message);
+            alert("トラブル発生: " + e.message);
         } finally {
-            loader.style.display = 'none';
+            document.getElementById('loader').style.display = 'none';
         }
     });
 </script>
