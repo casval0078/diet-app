@@ -179,21 +179,29 @@
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${GITHUB_TOKEN}`
                 },
-                body: JSON.stringify({
-                    model: MODEL_NAME,
-                    messages: [
-                        {
-                            role: "user",
-                            content: [
-                                { type: "text", text: prompt },
-                                {
-                                    type: "image_url",
-                                    image_url: { url: `data:image/jpeg;base64,${base64Image}` }
-                                }
-                            ]
-                        }
-                    ]
-                })
+                // --- 修正版：bodyの中身をこれに差し替えてください ---
+body: JSON.stringify({
+    model: "Gemini-1.5-Flash",
+    messages: [
+        {
+            role: "user",
+            content: [
+                { 
+                    type: "text", 
+                    text: prompt 
+                },
+                { 
+                    type: "image_url", 
+                    image_url: { 
+                        // ここがポイント：detailを指定しないとエラーになる場合があります
+                        url: `data:image/jpeg;base64,${base64Image}`,
+                        detail: "auto" 
+                    } 
+                }
+            ]
+        }
+    ]
+})
             });
 
             const result = await response.json();
