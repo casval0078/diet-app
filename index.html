@@ -164,7 +164,7 @@
             const prevAdvice = (history && history.length > 0) ? history[0].advice : "初回診断です。";
 
             // C. 【修正ポイント】Google公式 API 呼び出し
-            const API_KEY = "あなたの新しいAPIキーをここに入れる";
+            const API_KEY = "AIzaSyBuIj5zvp5AHtK_84o4Tr_ekDb-6XTGDVI";
             const GEMINI_URL = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
 
             const prompt = `あなたは熱血パーソナルトレーナーです。写真を見て、夏に向けてどこを具体的に絞るべきかアドバイスしてください。前回の回答：「${prevAdvice}」回答は短く熱い日本語で！`;
