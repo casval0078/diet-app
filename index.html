@@ -94,17 +94,39 @@
 
     // --- B. ログイン・登録の処理 ---
     document.getElementById('signup-btn').addEventListener('click', async () => {
-        const email = document.getElementById('user-email').value;
-        const password = document.getElementById('user-password').value;
-        const { error } = await mySupabase.auth.signUp({ email, password });
-        
-        if (error) {
-            alert("エラー: " + error.message);
+    const email = document.getElementById('user-email').value;
+    const password = document.getElementById('user-password').value;
+
+    // 1. まずは「ログイン」を試みる
+    const { data: signInData, error: signInError } = await mySupabase.auth.signInWithPassword({
+        email: email,
+        password: password,
+    });
+
+    if (!signInError) {
+        alert("ログインしました！");
+        checkUserStatus();
+        return;
+    }
+
+    // 2. ログインに失敗し、かつ「ユーザーが見つからない」場合だけ「新規登録」する
+    if (signInError.message === "Invalid login credentials") {
+        const { data: signUpData, error: signUpError } = await mySupabase.auth.signUp({
+            email: email,
+            password: password,
+        });
+
+        if (signUpError) {
+            alert("登録エラー: " + signUpError.message);
         } else {
-            alert("成功しました！");
+            alert("新しくアカウントを作成しました！");
             checkUserStatus();
         }
-    });
+    } else {
+        // パスワード間違いなど、その他のエラーを表示
+        alert("エラー: " + signInError.message);
+    }
+});
 
     // --- C. ログアウトの処理 ---
     document.getElementById('logout-btn').addEventListener('click', async () => {
