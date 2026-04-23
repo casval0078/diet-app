@@ -134,7 +134,7 @@
         }
     });
 
-    // 4. 【メイン】分析ボタンの処理
+// 4. 【メイン】分析ボタンの処理
     document.getElementById('upload-btn').addEventListener('click', async () => {
         const fileInput = document.getElementById('photo-input');
         const file = fileInput.files[0];
@@ -147,88 +147,57 @@
         document.getElementById('ai-response').style.display = 'none';
 
         try {
-            // A. 画像のリサイズとBase64変換 (通信の安定化)
-            const base64Image = await new Promise((resolve) => {
+            // A. 画像変換
+            const base64Image = await new Promise(r => {
                 const reader = new FileReader();
-                reader.onload = (e) => {
-                    const img = new Image();
-                    img.onload = () => {
-                        const canvas = document.createElement('canvas');
-                        const MAX_WIDTH = 800; 
-                        const scale = MAX_WIDTH / img.width;
-                        canvas.width = MAX_WIDTH;
-                        canvas.height = img.height * scale;
-                        const ctx = canvas.getContext('2d');
-                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                        // base64の本体部分のみを抽出
-                        resolve(canvas.toDataURL('image/jpeg', 0.8).split(',')[1]);
-                    };
-                    img.src = e.target.result;
-                };
+                reader.onload = () => r(reader.result.split(',')[1]);
                 reader.readAsDataURL(file);
             });
 
-            // B. 前回のアドバイスをDBから取得
+            // B. 前回のアドバイス取得
             const { data: history } = await mySupabase
                 .from('diet_history')
                 .select('advice')
                 .eq('user_id', user.id)
                 .order('created_at', { ascending: false })
                 .limit(1);
-            
             const prevAdvice = (history && history.length > 0) ? history[0].advice : "初回診断です。";
 
-            // C. GitHub Models (Gemini) 呼び出し
-            const prompt = `あなたは熱血パーソナルトレーナーです。写真を見て、夏に向けてどこを具体的に絞るべきか、筋肉をどうつけるべきかアドバイスしてください。前回の回答：「${prevAdvice}」前回との違いがあれば指摘し、継続を褒めるか気合を入れ直して。回答は短く熱い日本語で！`;
+            // C. 【修正ポイント】Google公式 API 呼び出し
+            const API_KEY = "あなたの新しいAPIキーをここに入れる";
+            const GEMINI_URL = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
 
-            const response = await fetch(ENDPOINT, {
+            const prompt = `あなたは熱血パーソナルトレーナーです。写真を見て、夏に向けてどこを具体的に絞るべきかアドバイスしてください。前回の回答：「${prevAdvice}」回答は短く熱い日本語で！`;
+
+            const response = await fetch(GEMINI_URL, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${GITHUB_TOKEN}`
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    model: MODEL_NAME,
-                    messages: [
-                        {
-                            role: "user",
-                            content: [
-                                { type: "text", text: prompt },
-                                { 
-                                    type: "image_url", 
-                                    image_url: { 
-                                        url: `data:image/jpeg;base64,${base64Image}` 
-                                    } 
-                                }
-                            ]
-                        }
-                    ],
-                    max_tokens: 1000
+                    contents: [{
+                        parts: [
+                            { text: prompt },
+                            { inline_data: { mime_type: "image/jpeg", data: base64Image } }
+                        ]
+                    }]
                 })
             });
 
             const result = await response.json();
+            if (!response.ok) throw new Error(result.error?.message || "エラー発生");
 
-            if (!response.ok) {
-                console.error("詳細エラー:", result);
-                throw new Error(result.error?.message || "AI分析中にエラーが発生しました");
-            }
+            // Google形式での回答取得
+            const advice = result.candidates[0].content.parts[0].text;
 
-            const advice = result.choices[0].message.content;
-
-            // D. 今回の回答をDBに保存 (Conflict対策)
+            // D. 保存（以前と同じ）
             try {
                 await mySupabase.from('diet_history').insert([{ user_id: user.id, advice: advice }]);
-            } catch (dbErr) {
-                console.warn("DB保存に失敗しましたが、回答は表示します:", dbErr);
-            }
+            } catch (dbErr) { console.warn(dbErr); }
 
             // E. 表示
             document.getElementById('advice-text').innerText = advice;
             document.getElementById('ai-response').style.display = 'block';
 
         } catch (e) {
-            console.error(e);
             alert("トラブル発生: " + e.message);
         } finally {
             document.getElementById('loader').style.display = 'none';
