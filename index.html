@@ -180,7 +180,19 @@
             });
 
             const result = await response.json();
+            
+            // --- ここから修正：エラーを詳しくチェック ---
+            if (result.error) {
+                throw new Error("Gemini APIエラー: " + result.error.message);
+            }
+
+            if (!result.candidates || !result.candidates[0]) {
+                console.error("APIのレスポンスが異常です:", result);
+                throw new Error("AIからの回答が空でした。APIキーの設定や、画像のサイズを確認してください。");
+            }
+
             const advice = result.candidates[0].content.parts[0].text;
+            // --- 修正ここまで ---
 
             // 5. 今回の回答をDBに保存
             await mySupabase.from('diet_history').insert([{ user_id: user.id, advice: advice }]);
