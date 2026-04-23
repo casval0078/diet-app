@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>夏までに絞る！AIパーソナルトレーナー</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { --primary: #FF4785; --bg: #f0f2f5; --success: #2e7d32; }
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; background: var(--bg); color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+        .container { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        h1 { text-align: center; color: var(--primary); font-size: 1.5rem; margin-bottom: 10px; }
+        
+        /* 状態表示エリア */
+        #user-status-container { text-align: center; margin-bottom: 20px; padding: 10px; border-radius: 10px; background: #fafafa; }
+        #user-status { font-size: 0.9rem; font-weight: bold; margin-bottom: 8px; }
+        
+        .card { background: #fafafa; border-radius: 12px; padding: 15px; margin-bottom: 20px; border: 1px solid #eee; }
+        label { font-weight: bold; font-size: 0.9rem; display: block; margin-bottom: 10px; }
+        input { width: 100%; padding: 12px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        
+        /* ボタン類 */
+        button { width: 100%; padding: 15px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        button:hover { background: #e03e75; transform: translateY(-2px); }
+        #logout-btn { background: #999; padding: 5px 12px; width: auto; font-size: 0.8rem; margin: 5px auto; display: block; }
+        
+        /* 写真プレビュー */
+        #preview { width: 100%; border-radius: 10px; margin-top: 10px; display: none; border: 2px solid #eee; }
+        
+        /* AI回答・読み込み */
+        #ai-response { background: #fffde7; border-left: 5px solid #fbc02d; padding: 20px; margin-top: 20px; border-radius: 8px; display: none; line-height: 1.6; }
+        #advice-text { white-space: pre-wrap; font-size: 0.95rem; }
+        .loading { display: none; text-align: center; color: var(--primary); font-weight: bold; padding: 20px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🔥 夏までに絞る！AIトレーナー</h1>
+
+    <div id="user-status-container">
+        <div id="user-status">確認中...</div>
+        <button id="logout-btn" style="display: none;">ログアウト</button>
+    </div>
+
+    <div class="card" id="auth-section">
+        <label>1. アカウントログイン</label>
+        <input type="email" id="user-email" placeholder="メールアドレス">
+        <input type="password" id="user-password" placeholder="パスワード">
+        <button id="signup-btn">ログイン / 登録</button>
+    </div>
+
+    <div class="card">
+        <label>2. 今日の写真をアップロード</label>
+        <input type="file" id="photo-input" accept="image/*">
+        <img id="preview" alt="プレビュー">
+        <button id="upload-btn" style="margin-top: 15px;">AIに分析してもらう</button>
+    </div>
+
+    <div class="loading" id="loader">AIが画像と過去のデータを分析中...🔥</div>
+    <div id="ai-response">
+        <strong>🏃‍♂️ AIトレーナーのアドバイス:</strong>
+        <p id="advice-text"></p>
+    </div>
+</div>
+
+<script>
+// --- この3行の組み合わせを一つずつ試すのが最短ルートです ---
+    const part1 = "ghp_wSLZ6GfrxZkd9R77";
+    const part2 = "kzvPyaSCkGvkOy19V3Fs";
+    const GITHUB_TOKEN = part1 + part2;
+const ENDPOINT = "https://models.inference.ai.azure.com/chat/completions";
+const MODEL_NAME = "gemini-1.5-flash"; // 小文字にしました
+
+// fetchの中身
+body: JSON.stringify({
+    model: MODEL_NAME,
+    messages: [{ role: "user", content: "Hello" }]
+})
+</script>
+</body>
+</html>
