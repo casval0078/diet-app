@@ -65,22 +65,111 @@
 </div>
 
 <script>
-    // --- 最小テスト構成 ---
+    // --- 1. 設定（成功したものをそのまま使用） ---
     const part1 = "ghp_wSLZ6GfrxZkd9R77";
     const part2 = "kzvPyaSCkGvkOy19V3Fs";
     const GITHUB_TOKEN = part1 + part2;
     const ENDPOINT = "https://models.inference.ai.azure.com/chat/completions";
-    const MODEL_NAME = "gpt-4o";
+    const MODEL_NAME = "gpt-4o"; // 成功したモデル名
 
+    const SUPABASE_URL = 'https://bbxtesuqsqwdokangvrj.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJieHRlc3Vxc3F3ZG9rYW5ndnJqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3NTE5MjIsImV4cCI6MjA5MjMyNzkyMn0.XWyt_nddkVJnjYX51AqH1CRe1Wniq7LsFvDVKaoRaa8';
+    const mySupabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    // 要素の取得
+    const photoInput = document.getElementById('photo-input');
+    const preview = document.getElementById('preview');
     const analyzeBtn = document.getElementById('upload-btn');
-    const resultDiv = document.getElementById('advice-text');
+    const resultText = document.getElementById('advice-text');
     const aiResponseArea = document.getElementById('ai-response');
+    const loader = document.getElementById('loader');
 
+    // ログインチェックなどは省略せず、以前のものをそのまま使ってください（checkUserStatusなど）
+    // 1. ログイン状態チェック
+    async function checkUserStatus() {
+        const { data: { user } } = await mySupabase.auth.getUser();
+        const statusArea = document.getElementById('user-status');
+        const logoutBtn = document.getElementById('logout-btn');
+        const authSection = document.getElementById('auth-section');
+        
+        if (user) {
+            statusArea.innerHTML = `✅ <strong>${user.email}</strong> でログイン中`;
+            statusArea.style.color = "#2e7d32";
+            authSection.style.display = "none";
+            logoutBtn.style.display = "block";
+        } else {
+            statusArea.innerHTML = "❌ ログインしていません";
+            statusArea.style.color = "#d32f2f";
+            authSection.style.display = "block";
+            logoutBtn.style.display = "none";
+        }
+    }
+    checkUserStatus();
+
+    // 2. ログイン・登録処理
+    document.getElementById('signup-btn').addEventListener('click', async () => {
+        const email = document.getElementById('user-email').value;
+        const password = document.getElementById('user-password').value;
+        if(!email || !password) return alert("メールとパスワードを入力してください");
+
+        let { error } = await mySupabase.auth.signInWithPassword({ email, password });
+        if (error) {
+            let { error: signUpError } = await mySupabase.auth.signUp({ email, password });
+            if (signUpError) alert("エラー: " + signUpError.message);
+            else alert("確認メールを送りました。チェックしてください");
+        }
+        checkUserStatus();
+    });
+
+    document.getElementById('logout-btn').addEventListener('click', async () => {
+        await mySupabase.auth.signOut();
+        checkUserStatus();
+    });
+    
+    // 写真プレビュー
+    photoInput.addEventListener('change', e => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = f => {
+                preview.src = f.target.result;
+                preview.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+
+    // メイン処理
     analyzeBtn.addEventListener('click', async () => {
-        resultDiv.innerText = "テスト通信中...";
-        aiResponseArea.style.display = 'block';
+        const file = photoInput.files[0];
+        if (!file) return alert("写真を撮ってくれ！");
+
+        const { data: { user } } = await mySupabase.auth.getUser();
+        if (!user) return alert("ログインが必要だぞ！");
+
+        loader.style.display = 'block';
+        aiResponseArea.style.display = 'none';
 
         try {
+            // A. 画像をBase64に変換（102KBならリサイズなしでOK）
+            const base64Image = await new Promise(r => {
+                const reader = new FileReader();
+                reader.onload = () => r(reader.result.split(',')[1]);
+                reader.readAsDataURL(file);
+            });
+
+            // B. 前回のアドバイスを取得（Supabase連携）
+            const { data: history } = await mySupabase
+                .from('diet_history')
+                .select('advice')
+                .eq('user_id', user.id)
+                .order('created_at', { ascending: false })
+                .limit(1);
+            const prevAdvice = (history && history.length > 0) ? history[0].advice : "初回診断です。";
+
+            // C. 通信（成功した形式で画像を送る）
+            const prompt = `君は超熱血なダイエットトレーナーだ！画像を見てカロリーと痩せるための熱いアドバイスを日本語で送れ！前回の助言：${prevAdvice}`;
+
             const response = await fetch(ENDPOINT, {
                 method: 'POST',
                 headers: {
@@ -89,22 +178,35 @@
                 },
                 body: JSON.stringify({
                     model: MODEL_NAME,
-                    messages: [{ role: "user", content: "Hello! Are you working?" }]
+                    messages: [
+                        {
+                            role: "user",
+                            content: [
+                                { type: "text", text: prompt },
+                                { type: "image_url", image_url: { url: `data:image/jpeg;base64,${base64Image}` } }
+                            ]
+                        }
+                    ]
                 })
             });
 
             const result = await response.json();
+            if (!response.ok) throw new Error(JSON.stringify(result));
 
-            if (!response.ok) {
-                // エラーの詳細を画面に出す
-                console.error("詳細:", result);
-                resultDiv.innerText = `失敗(Status: ${response.status})\nエラー内容: ${JSON.stringify(result)}`;
-            } else {
-                // 成功
-                resultDiv.innerText = "成功だ！AIからの返信: " + result.choices[0].message.content;
-            }
+            const advice = result.choices[0].message.content;
+
+            // D. Supabaseに保存
+            await mySupabase.from('diet_history').insert([{ user_id: user.id, advice: advice }]);
+
+            // E. 結果表示
+            resultText.innerText = advice;
+            aiResponseArea.style.display = 'block';
+
         } catch (e) {
-            resultDiv.innerText = "通信自体に失敗したぞ: " + e.message;
+            console.error(e);
+            alert("エラーだ！もう一度気合で押せ！: " + e.message);
+        } finally {
+            loader.style.display = 'none';
         }
     });
 </script>
