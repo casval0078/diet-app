@@ -65,14 +65,18 @@
 </div>
 
 <script>
-    // --- 【設定】ここを自分の情報に書き換えてください ---
+    // --- 【設定】 ---
     const SUPABASE_URL = 'https://bbxtesuqsqwdokangvrj.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJieHRlc3Vxc3F3ZG9rYW5ndnJqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3NTE5MjIsImV4cCI6MjA5MjMyNzkyMn0.XWyt_nddkVJnjYX51AqH1CRe1Wniq7LsFvDVKaoRaa8';
-    const GEMINI_API_KEY = 'AIzaSyBtwlqqXAW_iUe96y0WkK3CptvMcGfxAKQ';
+    
+    // GitHub Models用の設定
+    const GITHUB_TOKEN = "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";
+    const ENDPOINT = "https://models.inference.ai.azure.com/chat/completions";
+    const MODEL_NAME = "Gemini-1.5-Flash";
 
     const mySupabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // ログイン状態チェック
+    // 1. ログイン状態チェック
     async function checkUserStatus() {
         const { data: { user } } = await mySupabase.auth.getUser();
         const statusArea = document.getElementById('user-status');
@@ -93,14 +97,17 @@
     }
     checkUserStatus();
 
-    // ログイン・登録処理
+    // 2. ログイン・登録処理
     document.getElementById('signup-btn').addEventListener('click', async () => {
         const email = document.getElementById('user-email').value;
         const password = document.getElementById('user-password').value;
+        if(!email || !password) return alert("メールとパスワードを入力してください");
+
         let { error } = await mySupabase.auth.signInWithPassword({ email, password });
         if (error) {
             let { error: signUpError } = await mySupabase.auth.signUp({ email, password });
             if (signUpError) alert("エラー: " + signUpError.message);
+            else alert("確認メールを送りました。チェックしてください");
         }
         checkUserStatus();
     });
@@ -110,10 +117,7 @@
         checkUserStatus();
     });
 
-    const url = "https://models.inference.ai.azure.com/chat/completions";
-    const GITHUB_TOKEN = "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";
-    
-    // 写真プレビュー
+    // 3. 写真プレビュー
     document.getElementById('photo-input').addEventListener('change', e => {
         const file = e.target.files[0];
         if (file) {
@@ -127,27 +131,27 @@
         }
     });
 
-    // 【メイン】分析ボタンの処理
+    // 4. 【メイン】分析ボタンの処理
     document.getElementById('upload-btn').addEventListener('click', async () => {
         const fileInput = document.getElementById('photo-input');
         const file = fileInput.files[0];
-        if (!file) return alert("写真を選んでください！");
+        if (!file) return alert("写真を選んでください");
 
         const { data: { user } } = await mySupabase.auth.getUser();
-        if (!user) return alert("ログインが必要です。");
+        if (!user) return alert("まずはログインしてください");
 
         document.getElementById('loader').style.display = 'block';
         document.getElementById('ai-response').style.display = 'none';
 
         try {
-            // 1. Supabase Storageに保存（ユーザーIDごとのフォルダ）
+            // A. Supabase Storageに保存
             const fileName = `${user.id}/${Date.now()}.jpg`;
             const { error: uploadError } = await mySupabase.storage
                 .from('body-pics')
                 .upload(fileName, file);
             if (uploadError) throw uploadError;
 
-            // 2. 前回のアドバイスをDBから取得
+            // B. 前回のアドバイスをDBから取得
             const { data: history } = await mySupabase
                 .from('diet_history')
                 .select('advice')
@@ -157,69 +161,58 @@
             
             const prevAdvice = (history && history.length > 0) ? history[0].advice : "初回診断です。";
 
-            // 3. 画像をGeminiが読める形式(Base64)に変換
+            // C. 画像をBase64に変換
             const base64Image = await new Promise(r => {
                 const reader = new FileReader();
                 reader.onload = () => r(reader.result.split(',')[1]);
                 reader.readAsDataURL(file);
             });
 
-            // 4. Gemini API 呼び出し
-            const prompt = `あなたは熱血パーソナルトレーナーです。写真を見て、夏に向けてどこを具体的に絞るべきか、筋肉をどうつけるべきかアドバイスしてください。
-            前回のあなたの回答はこれです：「${prevAdvice}」
-            前回との違いがあれば指摘し、継続を褒めるか、気合を入れ直すメッセージをください。回答は短く、熱く、日本語でお願いします。`;
+            // D. GitHub Models (Gemini) 呼び出し
+            const prompt = `あなたは熱血パーソナルトレーナーです。写真を見て、夏に向けてどこを具体的に絞るべきか、筋肉をどうつけるべきかアドバイスしてください。前回の回答：「${prevAdvice}」前回との違いがあれば指摘し、継続を褒めるか気合を入れ直して。回答は短く熱い日本語で！`;
 
-            const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${GITHUB_TOKEN}`
-    },
-    body: JSON.stringify({
-        model: "Gemini-1.5-Flash", // モデル名の指定
-        messages: [
-            {
-                role: "user",
-                content: [
-                    { type: "text", text: prompt },
-                    {
-                        type: "image_url",
-                        image_url: {
-                            url: `data:image/jpeg;base64,${base64Image}`
+            const response = await fetch(ENDPOINT, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${GITHUB_TOKEN}`
+                },
+                body: JSON.stringify({
+                    model: MODEL_NAME,
+                    messages: [
+                        {
+                            role: "user",
+                            content: [
+                                { type: "text", text: prompt },
+                                {
+                                    type: "image_url",
+                                    image_url: { url: `data:image/jpeg;base64,${base64Image}` }
+                                }
+                            ]
                         }
-                    }
-                ]
-            }
-        ]
-    })
-});
+                    ]
+                })
+            });
 
-const result = await response.json();
-const advice = result.choices[0].message.content;
-            
-            // --- ここから修正：エラーを詳しくチェック ---
-            if (result.error) {
-                throw new Error("Gemini APIエラー: " + result.error.message);
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.message || "APIエラーが発生しました");
             }
 
-            if (!result.candidates || !result.candidates[0]) {
-                console.error("APIのレスポンスが異常です:", result);
-                throw new Error("AIからの回答が空でした。APIキーの設定や、画像のサイズを確認してください。");
-            }
+            // GitHub Models形式でのデータ取得
+            const advice = result.choices[0].message.content;
 
-            const advice = result.candidates[0].content.parts[0].text;
-            // --- 修正ここまで ---
-
-            // 5. 今回の回答をDBに保存
+            // E. 今回の回答をDBに保存
             await mySupabase.from('diet_history').insert([{ user_id: user.id, advice: advice }]);
 
-            // 6. 表示
+            // F. 表示
             document.getElementById('advice-text').innerText = advice;
             document.getElementById('ai-response').style.display = 'block';
 
         } catch (e) {
             console.error(e);
-            alert("エラーが発生しました: " + e.message);
+            alert("トラブル発生: " + e.message);
         } finally {
             document.getElementById('loader').style.display = 'none';
         }
