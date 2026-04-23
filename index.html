@@ -2,31 +2,50 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>ダイエットAIアプリ（テスト版）</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ダイエットAIアプリ - 開発版</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: sans-serif; max-width: 500px; margin: 20px auto; padding: 10px; line-height: 1.6; }
+        input { width: 100%; padding: 8px; margin: 5px 0; box-sizing: border-box; }
+        button { width: 100%; padding: 10px; background: #3ecf8e; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 10px; }
+        button:hover { opacity: 0.8; }
+        .card { border: 1px solid #ddd; padding: 15px; border-radius: 8px; margin-top: 20px; }
+        hr { margin: 30px 0; }
+    </style>
 </head>
 <body>
-    <h1>ダイエットAIアプリ開発中！</h1>
-    <p>ユーザー登録を試しましょう</p>
-    
-    <input type="email" id="user-email" placeholder="メールアドレス"><br>
-    <input type="password" id="user-password" placeholder="パスワード"><br><br>
-    <button id="signup-btn">ユーザー登録</button>
+
+    <h1>ダイエットAIアプリ</h1>
+
+    <div class="card">
+        <h3>STEP 1: ユーザー登録</h3>
+        <input type="email" id="user-email" placeholder="メールアドレス">
+        <input type="password" id="user-password" placeholder="パスワード">
+        <button id="signup-btn">アカウント作成</button>
+        <p style="font-size: 0.8rem; color: #666;">※登録済みの方は、同じ情報を入れてボタンを押せばログイン状態になります（Supabaseの仕様）</p>
+    </div>
+
+    <hr>
+
+    <div class="card">
+        <h3>STEP 2: 今日の体型をアップ</h3>
+        <input type="file" id="photo-input" accept="image/*">
+        <button id="upload-btn">写真を送信して保存</button>
+    </div>
 
     <script>
-        // 1. 変数名がぶつからないように 'mySupabase' に変更
+        // --- 設定エリア：自分の情報に書き換えてください ---
         const SUPABASE_URL = 'https://bbxtesuqsqwdokangvrj.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJieHRlc3Vxc3F3ZG9rYW5ndnJqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3NTE5MjIsImV4cCI6MjA5MjMyNzkyMn0.XWyt_nddkVJnjYX51AqH1CRe1Wniq7LsFvDVKaoRaa8';
         
-        // 変数の宣言（ここが原因①の場所でした）
+        // Supabaseクライアントの初期化
         const mySupabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        // 2. HTMLのonclickではなく、JavaScript側でボタンの動きを決める（より確実な方法）
+        // --- ユーザー登録処理 ---
         document.getElementById('signup-btn').addEventListener('click', async () => {
             const email = document.getElementById('user-email').value;
             const password = document.getElementById('user-password').value;
-
-            console.log("登録開始...", email); // 動作確認用
 
             const { data, error } = await mySupabase.auth.signUp({
                 email: email,
@@ -34,9 +53,43 @@
             });
 
             if (error) {
-                alert("エラー: " + error.message);
+                alert("登録エラー: " + error.message);
             } else {
-                alert("登録成功！SupabaseのUsers画面を確認してください。");
+                alert("登録成功！またはログインしました。");
+            }
+        });
+
+        // --- 写真アップロード処理 ---
+        document.getElementById('upload-btn').addEventListener('click', async () => {
+            const fileInput = document.getElementById('photo-input');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                alert("写真を選択してください！");
+                return;
+            }
+
+            // ログインしているかチェック
+            const { data: { user } } = await mySupabase.auth.getUser();
+            if (!user) {
+                alert("先にユーザー登録（ログイン）をしてください。");
+                return;
+            }
+
+            console.log("アップロード中...");
+            
+            // ファイル名が被らないように「ユーザーID_時間_ファイル名」にする
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+
+            const { data, error } = await mySupabase.storage
+                .from('body-pics') // あなたが作ったバケット名
+                .upload(fileName, file);
+
+            if (error) {
+                alert("アップロード失敗: " + error.message);
+            } else {
+                alert("アップロード成功！ストレージの body-pics バケットを確認してください。");
             }
         });
     </script>
