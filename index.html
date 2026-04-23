@@ -69,6 +69,8 @@
     const SUPABASE_URL = 'https://bbxtesuqsqwdokangvrj.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJieHRlc3Vxc3F3ZG9rYW5ndnJqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3NTE5MjIsImV4cCI6MjA5MjMyNzkyMn0.XWyt_nddkVJnjYX51AqH1CRe1Wniq7LsFvDVKaoRaa8';
     const GEMINI_API_KEY = 'AIzaSyBtwlqqXAW_iUe96y0WkK3CptvMcGfxAKQ';
+    const url = "https://models.inference.ai.azure.com/chat/completions";
+    const GITHUB_TOKEN = "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";
 
     const mySupabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -166,20 +168,33 @@
             前回のあなたの回答はこれです：「${prevAdvice}」
             前回との違いがあれば指摘し、継続を褒めるか、気合を入れ直すメッセージをください。回答は短く、熱く、日本語でお願いします。`;
 
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{
-                        parts: [
-                            { text: prompt },
-                            { inline_data: { mime_type: "image/jpeg", data: base64Image } }
-                        ]
-                    }]
-                })
-            });
+            const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${GITHUB_TOKEN}`
+    },
+    body: JSON.stringify({
+        model: "Gemini-1.5-Flash", // モデル名の指定
+        messages: [
+            {
+                role: "user",
+                content: [
+                    { type: "text", text: prompt },
+                    {
+                        type: "image_url",
+                        image_url: {
+                            url: `data:image/jpeg;base64,${base64Image}`
+                        }
+                    }
+                ]
+            }
+        ]
+    })
+});
 
-            const result = await response.json();
+const result = await response.json();
+const advice = result.choices[0].message.content;
             
             // --- ここから修正：エラーを詳しくチェック ---
             if (result.error) {
