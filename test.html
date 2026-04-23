@@ -142,10 +142,10 @@
     // メイン処理
     analyzeBtn.addEventListener('click', async () => {
         const file = photoInput.files[0];
-        if (!file) return alert("写真を撮ってくれ！");
+        if (!file) return alert("写真を送ってください");
 
         const { data: { user } } = await mySupabase.auth.getUser();
-        if (!user) return alert("ログインが必要だぞ！");
+        if (!user) return alert("ログインが必要です");
 
         loader.style.display = 'block';
         aiResponseArea.style.display = 'none';
@@ -168,7 +168,7 @@
             const prevAdvice = (history && history.length > 0) ? history[0].advice : "初回診断です。";
 
             // C. 通信（成功した形式で画像を送る）
-            const prompt = `君は超熱血なダイエットトレーナーだ！画像を見てカロリーと痩せるための熱いアドバイスを日本語で送れ！前回の助言：${prevAdvice}`;
+            const prompt = `あなたは20歳のイケメンパーソナルトレーナーです。身体の写真を見て、夏に向けてどこを具体的に絞るべきか、筋肉をどうつけるべきかアドバイスしてください。相手は女子高生の想定です。めろくなるように助言してください。前回の助言：${prevAdvice}`;
 
             const response = await fetch(ENDPOINT, {
                 method: 'POST',
@@ -204,7 +204,7 @@
 
         } catch (e) {
             console.error(e);
-            alert("エラーだ！もう一度気合で押せ！: " + e.message);
+            alert("エラーです: " + e.message);
         } finally {
             loader.style.display = 'none';
         }
