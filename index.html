@@ -7,34 +7,38 @@
 </head>
 <body>
     <h1>ダイエットAIアプリ開発中！</h1>
-    <p>まずはユーザー登録を試してみよう</p>
+    <p>ユーザー登録を試しましょう</p>
     
-    <input type="email" id="email" placeholder="メールアドレス"><br>
-    <input type="password" id="password" placeholder="パスワード"><br><br>
-    <button onclick="signUp()">ユーザー登録</button>
+    <input type="email" id="user-email" placeholder="メールアドレス"><br>
+    <input type="password" id="user-password" placeholder="パスワード"><br><br>
+    <button id="signup-btn">ユーザー登録</button>
 
     <script>
-        // あなたのSupabaseの情報をここに入れる
+        // 1. 変数名がぶつからないように 'mySupabase' に変更
         const SUPABASE_URL = 'https://bbxtesuqsqwdokangvrj.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJieHRlc3Vxc3F3ZG9rYW5ndnJqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3NTE5MjIsImV4cCI6MjA5MjMyNzkyMn0.XWyt_nddkVJnjYX51AqH1CRe1Wniq7LsFvDVKaoRaa8';
         
-        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        // 変数の宣言（ここが原因①の場所でした）
+        const mySupabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        async function signUp() {
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
+        // 2. HTMLのonclickではなく、JavaScript側でボタンの動きを決める（より確実な方法）
+        document.getElementById('signup-btn').addEventListener('click', async () => {
+            const email = document.getElementById('user-email').value;
+            const password = document.getElementById('user-password').value;
 
-            const { data, error } = await supabase.auth.signUp({
+            console.log("登録開始...", email); // 動作確認用
+
+            const { data, error } = await mySupabase.auth.signUp({
                 email: email,
                 password: password,
             });
 
             if (error) {
-                alert("エラーが発生しました: " + error.message);
+                alert("エラー: " + error.message);
             } else {
-                alert("登録成功！SupabaseのUsers画面を確認してね！");
+                alert("登録成功！SupabaseのUsers画面を確認してください。");
             }
-        }
+        });
     </script>
 </body>
 </html>
